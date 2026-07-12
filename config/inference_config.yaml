@@ -1,0 +1,19 @@
+# config/inference_config.yaml
+# ONNX Runtime inference parametreleri
+
+confidence_threshold: 0.5           # Bu eşiğin altındaki tespitler göz ardı edilir
+iou_threshold: 0.45                  # NMS için IOU eşiği
+low_confidence_feedback_threshold: 0.35  # Bu aralıktaki tespitler labeling queue'ya gönderilir
+
+class_names:
+  - defect_scratch   # Çizik
+  - defect_crack     # Çatlak
+  - defect_dent      # Ezik/Deformasyon
+  - ok               # Hatasız parça
+
+# NOT: CUDA/TensorRT hakkında
+# Gerçek üretim ortamında (NVIDIA Linux sunucu):
+#   execution_providers: ["CUDAExecutionProvider", "CPUExecutionProvider"]
+# Bu projede Mac M4 üzerinde:
+#   execution_providers: ["CoreMLExecutionProvider", "CPUExecutionProvider"]
+# (Otomatik seçim src/inference/model_loader.py içinde yapılır)

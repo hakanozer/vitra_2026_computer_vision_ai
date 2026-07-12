@@ -1,0 +1,9 @@
+{
+  "version": "v20260712_001",
+  "registered_at": 1783839758.842509,
+  "registered_at_iso": "2026-07-12T10:02:38",
+  "dataset_version": "latest",
+  "metrics": {},
+  "pt_source": "data/training_runs/train_latest_20260712_094343/weights/best.pt",
+  "onnx_source": "data/training_runs/train_latest_20260712_094343/weights/best.onnx"
+}

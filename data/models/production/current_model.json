@@ -1,0 +1,8 @@
+{
+  "version": "v20260712_001",
+  "model_path": "data/models/registry/v20260712_001/model.onnx",
+  "promoted_at": 1783839758.84306,
+  "promoted_at_iso": "2026-07-12T10:02:38",
+  "metrics": {},
+  "dataset_version": "latest"
+}

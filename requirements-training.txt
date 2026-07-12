@@ -1,0 +1,29 @@
+# requirements-training.txt
+# Eğitim bağımlılıkları — YALNIZCA HOST ortamında kurulur (Mac M4, MPS)
+# Docker konteynerinde KURULMAZ.
+#
+# KURULUM (host venv): pip install -r requirements-training.txt
+#
+# NOT: torch ve ultralytics Apple Silicon MPS desteği için pip'ten kurulur.
+#       PyTorch arm64 wheel'leri PyPI'da mevcuttur (2.3+).
+
+# --- PyTorch (Apple Silicon MPS destekli) ---
+torch==2.3.1
+torchvision==0.18.1
+
+# --- Ultralytics YOLO ---
+ultralytics==8.2.63
+
+# --- Görüntü İşleme (training tarafında da gerekli) ---
+opencv-python==4.10.0.84
+numpy==1.26.4
+
+# --- ONNX export desteği ---
+onnx==1.16.1
+onnxruntime==1.18.1
+
+# --- Konfigürasyon ---
+pyyaml==6.0.2
+
+# --- Yardımcı ---
+python-dotenv==1.0.1

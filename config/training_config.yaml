@@ -1,0 +1,31 @@
+# config/training_config.yaml
+# YOLO eğitim hiperparametreleri
+# HOST üzerinde çalışır (Mac M4, MPS ile)
+
+model_arch: "yolov8n"         # yolov8n | yolov8s | yolov8m | yolov8l | yolov8x
+epochs: 50
+imgsz: 640
+batch: 8                       # M4 için güvenli başlangıç; belleğe göre artırılabilir
+optimizer: "AdamW"
+lr0: 0.001
+patience: 20                   # Early stopping: N epoch iyileşme olmadığında dur
+
+# Eğitim çıktıları
+runs_dir: "data/training_runs"
+
+# Sınıf isimleri (data.yaml ile senkronize tutulmalı)
+class_names:
+  - defect_scratch
+  - defect_crack
+  - defect_dent
+  - ok
+
+# Promote kararı için mAP50 iyileşme eşiği
+# Yeni model bu kadar daha iyi olmazsa production'a geçmez
+promotion_map50_threshold: 0.01
+
+# Cihaz notu:
+# device: "mps"   → Apple Silicon M4 (host ortamı)
+# device: "cpu"   → CPU fallback
+# device: "cuda:0" → NVIDIA GPU (gerçek üretim ortamı, Linux sunucu)
+# Docker içinde MPS ÇALIŞMAZ — eğitim daima host'ta yapılır

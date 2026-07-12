@@ -1,0 +1,105 @@
+# docker-compose.yml
+# Vitra Endüstriyel AI — Compose v2 şeması
+#
+# Varsayılan profil: Mac M4 (arm64), CPU inference
+# Geliştirme ortamı: docker compose up
+#
+# ÖNEMLİ: Eğitim servisi buraya DAHİL DEĞİLDİR.
+# Eğitim HOST üzerinde çalışır: python scripts/train.py --device mps
+#
+# Üretim (NVIDIA Linux) için GPU bloğu örneği (yorum satırında):
+# deploy:
+#   resources:
+#     reservations:
+#       devices:
+#         - driver: nvidia
+#           count: 1
+#           capabilities: [gpu]
+
+services:
+
+  # ------------------------------------------------------------------ #
+  # AI Inference + FastAPI Dashboard Servisi
+  # ------------------------------------------------------------------ #
+  ai-inference:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      platforms:
+        - linux/arm64
+    image: vitra-ai-inference:latest
+    container_name: vitra-ai-inference
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONPATH=/app
+      - CONFIG_DIR=/app/config
+      - MQTT_HOST=mosquitto
+      - MODBUS_HOST=mock-plc
+    volumes:
+      # Kalıcı veri dizinleri — host ile paylaşılır (eğitim sonrası model buraya konur)
+      - ./data:/app/data
+      - ./config:/app/config
+      - ./logs:/app/logs
+    depends_on:
+      mosquitto:
+        condition: service_started
+      mock-plc:
+        condition: service_started
+    networks:
+      - vitra-net
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  # ------------------------------------------------------------------ #
+  # MQTT Broker (Mosquitto)
+  # ------------------------------------------------------------------ #
+  mosquitto:
+    image: eclipse-mosquitto:2.0.18
+    container_name: vitra-mosquitto
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+      - "9001:9001"    # WebSocket
+    volumes:
+      - mosquitto-data:/mosquitto/data
+      - mosquitto-logs:/mosquitto/log
+    command: >
+      sh -c "
+        echo 'listener 1883' > /mosquitto/config/mosquitto.conf &&
+        echo 'listener 9001' >> /mosquitto/config/mosquitto.conf &&
+        echo 'protocol websockets' >> /mosquitto/config/mosquitto.conf &&
+        echo 'allow_anonymous true' >> /mosquitto/config/mosquitto.conf &&
+        mosquitto -c /mosquitto/config/mosquitto.conf
+      "
+    networks:
+      - vitra-net
+
+  # ------------------------------------------------------------------ #
+  # Mock PLC Simülatörü (pymodbus tabanlı)
+  # ------------------------------------------------------------------ #
+  mock-plc:
+    build: ./mock_plc
+    image: vitra-mock-plc:latest
+    container_name: vitra-mock-plc
+    restart: unless-stopped
+    ports:
+      - "502:502"
+    networks:
+      - vitra-net
+
+# ------------------------------------------------------------------ #
+# Volumes & Networks
+# ------------------------------------------------------------------ #
+volumes:
+  mosquitto-data:
+  mosquitto-logs:
+
+networks:
+  vitra-net:
+    driver: bridge

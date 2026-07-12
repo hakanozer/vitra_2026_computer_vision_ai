@@ -1,0 +1,15 @@
+# config/quality_config.yaml
+# Görüntü kalite analiz eşikleri
+
+# Laplacian varyansı — bulanıklık tespiti
+# Düşük değer = bulanık görüntü. Kamera ve ışık koşullarına göre ayarlanmalı.
+# Tipik değerler: > 100 keskin, < 50 çok bulanık
+blur_threshold: 100.0
+
+# Parlaklık eşikleri (0–255 gri ton ortalama)
+min_brightness: 30.0    # Çok karanlık
+max_brightness: 225.0   # Çok parlak (overexposed)
+
+# Kontrast eşiği (gri ton standart sapması)
+# Düşük kontrast = doku detayları görünmüyor → model hasar göremez
+min_contrast: 20.0
