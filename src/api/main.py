@@ -114,6 +114,7 @@ def _run_inference_loop() -> None:
         result = _inference_engine.predict(
             packet.frame, packet.frame_index, packet.camera_id
         )
+        print(f"Inference result: {result}")
         _result_processor.process(result, packet.frame)
 
         # Periyodik dataset aday kaydı

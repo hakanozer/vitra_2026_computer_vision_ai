@@ -1,9 +1,9 @@
 # config/inference_config.yaml
 # ONNX Runtime inference parametreleri
 
-confidence_threshold: 0.5           # Bu eşiğin altındaki tespitler göz ardı edilir
+confidence_threshold: 0.2           # Bu eşiğin altındaki tespitler göz ardı edilir
 iou_threshold: 0.45                  # NMS için IOU eşiği
-low_confidence_feedback_threshold: 0.35  # Bu aralıktaki tespitler labeling queue'ya gönderilir
+low_confidence_feedback_threshold: 0.2   # Bu aralıktaki tespitler labeling queue'ya gönderilir
 
 class_names:
   - defect_scratch   # Çizik

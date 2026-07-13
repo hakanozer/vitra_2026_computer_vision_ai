@@ -3,7 +3,7 @@
 scripts/bbox_picker.py
 Bir görüntü üzerinde fareyle kutu çizip bbox_xywh koordinatlarını üretir.
 Birden fazla kutu çizebilirsiniz (her biri için sınıf seçilir), sonunda
-doğrudan /api/labeling/label/{id} endpoint'ine yapıştırabileceğiniz JSON basılır.
+doğrudan /api/labeling/label/{id} endpoint'ine POST gönderilir.
 
 Kullanım:
     python scripts/bbox_picker.py --id <sample_id>
@@ -13,12 +13,14 @@ Kontroller:
     Sol tık + sürükle : kutu çiz
     Kutu çizince       : terminalde sınıf numarası sorar (0,1,2,3)
     'u'                : son kutuyu geri al (undo)
-    's'                : bitir, JSON'u yazdır
+    's'                : bitir, etiketi otomatik gönder
     'q' / ESC          : iptal
 """
 import argparse
 import json
 from pathlib import Path
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 
 import cv2
 
@@ -86,8 +88,10 @@ def main():
 
     if args.id:
         img_path = Path(args.queue_dir) / f"{args.id}.png"
+        sample_id = args.id
     elif args.image:
         img_path = Path(args.image)
+        sample_id = img_path.stem
     else:
         parser.error("--id veya --image belirtmelisiniz")
 
@@ -134,8 +138,22 @@ def main():
         "operator_id": "manual",
     }
 
-    print("\n=== Hazır JSON — /api/labeling/label/{sample_id} gövdesine yapıştırın ===\n")
-    print(json.dumps(payload, indent=2, ensure_ascii=False))
+    url = f"http://localhost:8000/api/labeling/label/{sample_id}"
+    request = Request(
+        url,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"accept": "application/json", "Content-Type": "application/json"},
+        method="POST",
+    )
+
+    try:
+        with urlopen(request, timeout=10) as response:
+            response.read()
+        print(f"Etiket gönderildi: {sample_id}")
+    except HTTPError as error:
+        print(f"Etiket gönderilemedi: {error.code} {error.reason}")
+    except URLError as error:
+        print(f"Etiket gönderilemedi: {error.reason}")
 
 
 if __name__ == "__main__":

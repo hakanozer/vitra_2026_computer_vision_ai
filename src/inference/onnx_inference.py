@@ -69,6 +69,15 @@ class OnnxInference:
         self._low_conf_threshold: float = config.get(
             "inference", "low_confidence_feedback_threshold", default=0.35
         )
+        self._candidate_threshold: float = min(self._conf_threshold, self._low_conf_threshold)
+        if self._low_conf_threshold > self._conf_threshold:
+            logger.warning(
+                "low_confidence_feedback_threshold (%.3f) is higher than confidence_threshold (%.3f). "
+                "Using %.3f for candidate prefilter.",
+                self._low_conf_threshold,
+                self._conf_threshold,
+                self._candidate_threshold,
+            )
         # Model giriş adı ve boyutu
         self._input_name = session.get_inputs()[0].name
         logger.debug("ONNX input name: %s", self._input_name)
@@ -95,21 +104,18 @@ class OnnxInference:
         inference_ms = (time.monotonic() - t0) * 1000
 
         # 3. Postprocess
-        detections = self._postprocess(raw_output[0], orig_w, orig_h)
+        detections, has_low_conf = self._postprocess(raw_output[0], orig_w, orig_h)
 
-        # Aktif öğrenme: herhangi bir tespit düşük confidence'a sahip mi?
-        has_low_conf = any(
-            d.confidence < self._conf_threshold and d.confidence >= self._low_conf_threshold
-            for d in detections
-        )
 
-        return InferenceResult(
+        result = InferenceResult(
             detections=detections,
             inference_time_ms=inference_ms,
             frame_index=frame_index,
             camera_id=camera_id,
             has_low_confidence=has_low_conf,
         )
+        # print result
+        return result
 
     # ------------------------------------------------------------------ #
     # Preprocess
@@ -137,7 +143,7 @@ class OnnxInference:
 
     def _postprocess(
         self, output: np.ndarray, orig_w: int, orig_h: int
-    ) -> list[Detection]:
+    ) -> tuple[list[Detection], bool]:
         """
         YOLOv8 ONNX çıktısını (1, 84, 8400) → Detection listesine dönüştürür.
 
@@ -148,32 +154,143 @@ class OnnxInference:
         Scaling: 640×640 koordinatlarını orijinal görüntü boyutuna çevir.
         NMS: Üst üste binen kutuları temizle (cv2.dnn.NMSBoxes).
         """
-        predictions = output[0]  # (84, 8400) — batch boyutu çıkarıldı
+        if output.ndim == 3:
+            predictions = output[0]
+        elif output.ndim == 2:
+            predictions = output
+        else:
+            logger.warning("Unexpected ONNX output shape: %s", output.shape)
+            return [], False
 
-        # cx, cy, w, h + sınıf skorları
-        boxes_raw = predictions[:4, :].T      # (8400, 4)
-        scores_raw = predictions[4:, :].T     # (8400, num_classes)
+        # Bazı export'larda (attrs, N), bazılarında (N, attrs) döner.
+        # Burada her iki düzeni de destekleyip (N, attrs) üretiriz.
+        expected_attrs = 4 + len(self._class_names)
+        if predictions.shape[0] == expected_attrs and predictions.shape[1] != expected_attrs:
+            pred = predictions.T
+        elif predictions.shape[1] == expected_attrs:
+            pred = predictions
+        elif predictions.shape[0] < predictions.shape[1]:
+            pred = predictions.T
+        else:
+            pred = predictions
 
-        class_ids = np.argmax(scores_raw, axis=1)
-        confidences = scores_raw[np.arange(len(scores_raw)), class_ids]
+        if pred.ndim != 2 or pred.shape[1] < 5:
+            logger.warning("Unexpected prediction matrix shape after normalize: %s", pred.shape)
+            return [], False
 
-        # Eşik filtresi
-        mask = confidences >= self._low_conf_threshold
+        attrs = pred.shape[1]
+        num_classes = len(self._class_names)
+
+        def _sigmoid(x: np.ndarray) -> np.ndarray:
+            return 1.0 / (1.0 + np.exp(-x))
+
+        class_ids: np.ndarray
+        confidences: np.ndarray
+        boxes_raw: np.ndarray
+        use_xyxy_input = False
+
+        # Format A: NMS export benzeri [x1, y1, x2, y2, conf, class_id]
+        if attrs == 6:
+            class_col = pred[:, 5]
+            near_integer_class = np.all(np.isfinite(class_col)) and np.all(
+                np.abs(class_col - np.round(class_col)) < 1e-4
+            )
+            if near_integer_class:
+                use_xyxy_input = True
+                boxes_raw = pred[:, :4].astype(np.float32)
+                confidences = pred[:, 4].astype(np.float32)
+                class_ids = np.clip(np.round(class_col), 0, max(num_classes - 1, 0)).astype(int)
+            else:
+                boxes_raw = pred[:, :4]
+                scores_raw = pred[:, 4:]
+                if scores_raw.size == 0:
+                    logger.warning("No class scores in ONNX output with shape: %s", predictions.shape)
+                    return [], False
+                if np.min(scores_raw) < 0.0 or np.max(scores_raw) > 1.0:
+                    scores_raw = _sigmoid(scores_raw)
+                class_ids = np.argmax(scores_raw, axis=1)
+                confidences = scores_raw[np.arange(len(scores_raw)), class_ids]
+
+        # Format B: YOLOv5 tarzı [cx, cy, w, h, obj, cls1..clsN]
+        elif attrs >= 5 + num_classes and num_classes > 0:
+            boxes_raw = pred[:, :4]
+            obj = pred[:, 4:5]
+            cls_scores = pred[:, 5:5 + num_classes]
+            if np.min(obj) < 0.0 or np.max(obj) > 1.0:
+                obj = _sigmoid(obj)
+            if np.min(cls_scores) < 0.0 or np.max(cls_scores) > 1.0:
+                cls_scores = _sigmoid(cls_scores)
+            fused_scores = obj * cls_scores
+            class_ids = np.argmax(fused_scores, axis=1)
+            confidences = fused_scores[np.arange(len(fused_scores)), class_ids]
+
+        # Format C: YOLOv8 tarzı [cx, cy, w, h, cls1..clsN]
+        else:
+            boxes_raw = pred[:, :4]
+            scores_raw = pred[:, 4:]
+            if scores_raw.size == 0:
+                logger.warning("No class scores in ONNX output with shape: %s", predictions.shape)
+                return [], False
+            if np.min(scores_raw) < 0.0 or np.max(scores_raw) > 1.0:
+                scores_raw = _sigmoid(scores_raw)
+            class_ids = np.argmax(scores_raw, axis=1)
+            confidences = scores_raw[np.arange(len(scores_raw)), class_ids]
+
+        # Final conf eşiğinin altında ama low_conf eşiğinin üstünde kalanlar,
+        # aktif öğrenme için sinyal olarak tutulur.
+        has_low_conf_candidate = bool(
+            np.any((confidences >= self._low_conf_threshold) & (confidences < self._conf_threshold))
+        )
+
+        if confidences.size > 0:
+            logger.debug(
+                "Postprocess stats: shape=%s attrs=%d conf_max=%.4f conf_mean=%.4f",
+                pred.shape,
+                attrs,
+                float(np.max(confidences)),
+                float(np.mean(confidences)),
+            )
+
+        # Aday filtresi: confidence_threshold düşürüldüğünde gerçekten daha fazla aday geçsin.
+        mask = confidences >= self._candidate_threshold
         boxes_raw = boxes_raw[mask]
         confidences = confidences[mask]
         class_ids = class_ids[mask]
 
-        if len(boxes_raw) == 0:
-            return []
+        logger.debug("Postprocess candidates after threshold %.3f: %d", self._candidate_threshold, len(boxes_raw))
 
-        # cx,cy,w,h → x1,y1,w,h (640×640 koordinatları)
+        if len(boxes_raw) == 0:
+            return [], has_low_conf_candidate
+
         scale_x = orig_w / INPUT_SIZE[0]
         scale_y = orig_h / INPUT_SIZE[1]
 
-        x1 = (boxes_raw[:, 0] - boxes_raw[:, 2] / 2) * scale_x
-        y1 = (boxes_raw[:, 1] - boxes_raw[:, 3] / 2) * scale_y
-        w = boxes_raw[:, 2] * scale_x
-        h = boxes_raw[:, 3] * scale_y
+        if use_xyxy_input:
+            x1_raw = boxes_raw[:, 0]
+            y1_raw = boxes_raw[:, 1]
+            x2_raw = boxes_raw[:, 2]
+            y2_raw = boxes_raw[:, 3]
+
+            # Bazı export'larda xyxy normalize [0,1] gelebilir.
+            if np.max(np.abs(boxes_raw)) <= 2.0:
+                x1 = x1_raw * orig_w
+                y1 = y1_raw * orig_h
+                x2 = x2_raw * orig_w
+                y2 = y2_raw * orig_h
+            else:
+                x1 = x1_raw
+                y1 = y1_raw
+                x2 = x2_raw
+                y2 = y2_raw
+
+            w = np.maximum(0.0, x2 - x1)
+            h = np.maximum(0.0, y2 - y1)
+        else:
+            # cx,cy,w,h → x1,y1,w,h (640×640 koordinatları)
+            x1 = (boxes_raw[:, 0] - boxes_raw[:, 2] / 2) * scale_x
+            y1 = (boxes_raw[:, 1] - boxes_raw[:, 3] / 2) * scale_y
+            w = boxes_raw[:, 2] * scale_x
+            h = boxes_raw[:, 3] * scale_y
 
         # cv2.dnn.NMSBoxes için liste dönüşümü
         boxes_list = [[float(x), float(y), float(ww), float(hh)]
@@ -184,7 +301,8 @@ class OnnxInference:
             boxes_list, confs_list, self._conf_threshold, self._iou_threshold
         )
         if len(indices) == 0:
-            return []
+            logger.debug("Postprocess NMS kept 0 boxes (conf=%.3f iou=%.3f)", self._conf_threshold, self._iou_threshold)
+            return [], has_low_conf_candidate
 
         detections = []
         for idx in indices.flatten():
@@ -201,4 +319,5 @@ class OnnxInference:
                     bbox_xywh=[bx, by, bw, bh],
                 )
             )
-        return detections
+        logger.debug("Postprocess final detections: %d", len(detections))
+        return detections, has_low_conf_candidate

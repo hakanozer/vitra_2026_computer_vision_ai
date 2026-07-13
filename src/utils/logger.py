@@ -5,6 +5,7 @@ Merkezi loglama konfigürasyonu — tüm modüller bu factory'yi kullanır.
 import logging
 import sys
 from pathlib import Path
+from datetime import datetime
 
 
 LOG_FORMAT = "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
@@ -32,7 +33,8 @@ def get_logger(name: str, level: int = logging.INFO) -> logging.Logger:
     # File handler — logs/ klasörüne yaz (container volume mount ile dışa aktarılır)
     log_dir = Path("logs")
     log_dir.mkdir(exist_ok=True)
-    fh = logging.FileHandler(log_dir / "vitra.log", encoding="utf-8")
+    log_file = datetime.now().strftime("%d_%m_%Y_vitra.log")
+    fh = logging.FileHandler(log_dir / log_file, encoding="utf-8")
     fh.setLevel(level)
     fh.setFormatter(formatter)
     logger.addHandler(fh)

@@ -29,11 +29,13 @@ async function fetchStats() {
       modelBadge.className = 'badge badge-red';
     }
 
+    console.log(JSON.stringify(recent))
     // Son tespitler tablosu
     const tbody = document.getElementById('detections-body');
     if (recent.detections.length === 0) {
       tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#64748b">Henüz tespit yok</td></tr>';
     } else {
+      console.log(JSON.stringify(recent.detections))
       tbody.innerHTML = recent.detections.map(d => {
         const det = d.detections[0] || {};
         const ts = new Date(d.timestamp * 1000).toLocaleTimeString('tr-TR');
