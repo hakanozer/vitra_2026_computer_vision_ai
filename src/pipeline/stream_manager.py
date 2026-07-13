@@ -6,6 +6,8 @@ import threading
 import time
 from typing import Dict, List, Optional
 
+import numpy as np
+
 from src.pipeline.camera_reader import CameraReader
 from src.pipeline.frame_queue import FramePacket, FrameQueue
 from src.utils.config_loader import config
@@ -27,6 +29,8 @@ class StreamManager:
         self._producer_threads: Dict[str, threading.Thread] = {}
         self._running = False
         self._frame_counter: Dict[str, int] = {}
+        self._latest_annotated_frames: Dict[str, np.ndarray] = {}
+        self._annotated_lock = threading.Lock()
 
     # ------------------------------------------------------------------ #
     # Kamera yönetimi
@@ -105,6 +109,15 @@ class StreamManager:
         if reader is None:
             return None
         return reader.get_frame()
+
+    def set_latest_annotated_frame(self, camera_id: str, frame: np.ndarray) -> None:
+        with self._annotated_lock:
+            self._latest_annotated_frames[camera_id] = frame.copy()
+
+    def get_latest_annotated_frame(self, camera_id: str) -> Optional[np.ndarray]:
+        with self._annotated_lock:
+            frame = self._latest_annotated_frames.get(camera_id)
+            return frame.copy() if frame is not None else None
 
     def get_queue_stats(self) -> Dict[str, dict]:
         return {

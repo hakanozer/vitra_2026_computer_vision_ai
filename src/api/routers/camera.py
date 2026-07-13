@@ -3,6 +3,7 @@ src/api/routers/camera.py
 Kamera yönetimi endpoint'leri.
 """
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 router = APIRouter()
@@ -86,3 +87,37 @@ def capture_now(req: CaptureNowRequest):
         "camera_id": camera_id,
         "image_url": f"/api/labeling/image/{sample_id}",
     }
+
+
+@router.get("/stream/{camera_id}")
+def video_stream(camera_id: str, annotated: bool = False):
+    """MJPEG video akışı — dashboard'da canlı görüntülemek için."""
+    from src.api.main import stream_manager
+    import time
+    import cv2
+
+    def gen_frames():
+        while True:
+            # Varsayılan olarak ham kamerayı göster.
+            # İstenirse ?annotated=true ile işlenmiş frame açılabilir.
+            if annotated:
+                frame = stream_manager.get_latest_annotated_frame(camera_id)
+                if frame is None:
+                    frame = stream_manager.get_latest_frame(camera_id)
+            else:
+                frame = stream_manager.get_latest_frame(camera_id)
+                
+            if frame is None:
+                time.sleep(0.04)
+                continue
+                
+            ret, buffer = cv2.imencode('.jpg', frame)
+            if not ret:
+                time.sleep(0.04)
+                continue
+                
+            yield (b'--frame\r\n'
+                   b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
+            time.sleep(0.04)  # Maksimum ~25 FPS limitleyerek CPU tasarrufu sağlar
+
+    return StreamingResponse(gen_frames(), media_type="multipart/x-mixed-replace; boundary=frame")

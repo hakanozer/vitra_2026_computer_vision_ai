@@ -29,13 +29,50 @@ async function fetchStats() {
       modelBadge.className = 'badge badge-red';
     }
 
-    console.log(JSON.stringify(recent))
+    // Parça Durumu Güncelleme
+    const statusCard = document.getElementById('status-card');
+    const partStatus = document.getElementById('part-status');
+    const partStatusSub = document.getElementById('part-status-sub');
+    
+    if (stats.latest_frame_status) {
+      const lfs = stats.latest_frame_status;
+      if (lfs.status === 'defect') {
+        partStatus.textContent = 'HATALI (NOK)';
+        partStatus.style.color = 'var(--color-nok)';
+        statusCard.className = 'card status-card pulse';
+        statusCard.style.borderColor = 'var(--color-nok)';
+        
+        const topDefect = lfs.detections.find(d => d.class_name.startsWith('defect')) || {};
+        const conf = topDefect.confidence ? (topDefect.confidence * 100).toFixed(1) + '%' : '';
+        partStatusSub.textContent = `Hata Tespit Edildi: ${topDefect.class_name || 'defect'} (${conf})`;
+      } else if (lfs.status === 'ok') {
+        // Sadece modelin açıkça "ok" sınıfı tespit ettiği durumda YESIL göster
+        partStatus.textContent = 'TEMİZ (OK)';
+        partStatus.style.color = 'var(--color-ok)';
+        statusCard.className = 'card status-card pulse-ok';
+        statusCard.style.borderColor = 'var(--color-ok)';
+        partStatusSub.textContent = 'Parça başarıyla doğrulandı (OK sınıfı tespit edildi).';
+      } else if (lfs.status === 'ok_implicit') {
+        // Model HİÇBİR şey tespit etmedi — tarafsız (gri) göster
+        partStatus.textContent = 'Analiz Ediliyor';
+        partStatus.style.color = 'var(--text-muted)';
+        statusCard.className = 'card status-card';
+        statusCard.style.borderColor = 'var(--border-color)';
+        partStatusSub.textContent = 'Kamerada eşik üzeri tespit yok — nesneyi kameraya daha yakın tutun.';
+      } else {
+        partStatus.textContent = 'Sinyal Yok';
+        partStatus.style.color = 'var(--text-muted)';
+        statusCard.className = 'card status-card';
+        statusCard.style.borderColor = 'var(--border-color)';
+        partStatusSub.textContent = 'Kamera görüntüsü işlenmesi bekleniyor...';
+      }
+    }
+
     // Son tespitler tablosu
     const tbody = document.getElementById('detections-body');
     if (recent.detections.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#64748b">Henüz tespit yok</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted)">Henüz tespit yok</td></tr>';
     } else {
-      console.log(JSON.stringify(recent.detections))
       tbody.innerHTML = recent.detections.map(d => {
         const det = d.detections[0] || {};
         const ts = new Date(d.timestamp * 1000).toLocaleTimeString('tr-TR');

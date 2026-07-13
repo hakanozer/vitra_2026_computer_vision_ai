@@ -48,11 +48,12 @@ _inference_running = False
 # ------------------------------------------------------------------ #
 
 def _alarm_callback(result) -> None:
+    # Sadece sınıf adı "defect" ile başlayan tespitler alarm tetikler
+    has_defect = any(d.class_name.startswith("defect") for d in result.detections)
     mqtt_publisher.publish_alarm(
         result.camera_id, result.detections, result.frame_index
     )
-    if result.detections:
-        modbus_writer.write_alarm(active=True)
+    modbus_writer.write_alarm(active=has_defect)
 
 
 def _feedback_callback(frame: np.ndarray, camera_id: str) -> None:
@@ -95,7 +96,7 @@ def ensure_inference_model_loaded(force_reload: bool = False) -> bool:
 def _run_inference_loop() -> None:
     global _inference_running
     camera_id: str = config.get("app", "pipeline", "default_camera_id", default="camera-0")
-    capture_interval: float = config.get("app", "pipeline", "capture_save_every_n_seconds", default=15000.0)
+    capture_interval: float = config.get("app", "pipeline", "capture_save_every_n_seconds", default=1500000.0)
     last_capture = 0.0
 
     while _inference_running:
@@ -114,7 +115,8 @@ def _run_inference_loop() -> None:
         result = _inference_engine.predict(
             packet.frame, packet.frame_index, packet.camera_id
         )
-        _result_processor.process(result, packet.frame)
+        annotated = _result_processor.process(result, packet.frame)
+        stream_manager.set_latest_annotated_frame(packet.camera_id, annotated)
 
         # Periyodik dataset aday kaydı
         now = time.time()

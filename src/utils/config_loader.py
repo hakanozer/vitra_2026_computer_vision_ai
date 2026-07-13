@@ -3,6 +3,7 @@ src/utils/config_loader.py
 YAML tabanlı konfigürasyon yükleme ve erişim yardımcısı.
 """
 import os
+import re
 from pathlib import Path
 from typing import Any
 
@@ -10,11 +11,38 @@ import yaml
 
 
 _CONFIG_DIR = Path(os.getenv("CONFIG_DIR", "config"))
+_ENV_VAR_PATTERN = re.compile(r'\${([^}]+)}')
+
+
+def _expand_env_var(value: str) -> str:
+    def replace_match(match: re.Match) -> str:
+        var_spec = match.group(1)
+        if ':-' in var_spec:
+            var_name, default = var_spec.split(':-', 1)
+            return os.getenv(var_name, default)
+        elif ':' in var_spec:
+            var_name, default = var_spec.split(':', 1)
+            return os.getenv(var_name, default)
+        else:
+            return os.getenv(var_spec, '')
+    return _ENV_VAR_PATTERN.sub(replace_match, value)
+
+
+def _expand_env_vars_recursive(data: Any) -> Any:
+    if isinstance(data, dict):
+        return {k: _expand_env_vars_recursive(v) for k, v in data.items()}
+    elif isinstance(data, list):
+        return [_expand_env_vars_recursive(item) for item in data]
+    elif isinstance(data, str):
+        return _expand_env_var(data)
+    else:
+        return data
 
 
 def _load_yaml(path: Path) -> dict:
     with open(path, "r", encoding="utf-8") as f:
-        return yaml.safe_load(f) or {}
+        data = yaml.safe_load(f) or {}
+    return _expand_env_vars_recursive(data)
 
 
 def _deep_get(data: dict, *keys: str, default: Any = None) -> Any:

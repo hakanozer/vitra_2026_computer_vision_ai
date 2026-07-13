@@ -95,13 +95,31 @@ def train(
 
     yaml_path = create_dataset_yaml(dataset_version)
 
+    # Küçük veri setleri için warmup (ısınma fazı) ve patience (erken durdurma) devre dışı bırakılır.
+    # Aksi takdirde, model weights warmup iterasyon limiti altında kalıp güncellenemez.
+    ds_path = DATASET_DIR / dataset_version
+    train_labels_dir = ds_path / "labels" / "train"
+    num_train_samples = len(list(train_labels_dir.glob("*.txt"))) if train_labels_dir.exists() else 0
+
+    extra_train_args = {}
+    if num_train_samples < 10:
+        logger.info(
+            "Small dataset detected (%d samples). Disabling warmup and early stopping for optimal learning.",
+            num_train_samples
+        )
+        extra_train_args["warmup_epochs"] = 0.0
+        extra_train_args["patience"] = 0
+    else:
+        extra_train_args["patience"] = config.get("training", "patience", default=20)
+
     logger.info(
-        "Starting YOLO training: arch=%s epochs=%d imgsz=%d batch=%d device=%s",
+        "Starting YOLO training: arch=%s epochs=%d imgsz=%d batch=%d device=%s extra_args=%s",
         model_arch,
         epochs,
         imgsz,
         batch,
         device,
+        extra_train_args,
     )
 
     model = YOLO(f"{model_arch}.pt")  # Pretrained ağırlıkları indir
@@ -115,13 +133,13 @@ def train(
         project=project,
         name=run_name,
         exist_ok=True,
-        patience=config.get("training", "patience", default=20),
         optimizer=config.get("training", "optimizer", default="AdamW"),
         lr0=config.get("training", "lr0", default=0.001),
         augment=True,
         save=True,
         plots=True,
         verbose=True,
+        **extra_train_args
     )
 
     # En iyi model yolu

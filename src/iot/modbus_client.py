@@ -26,13 +26,20 @@ class ModbusAlarmWriter:
     """
 
     def __init__(self):
+        self._enabled: bool = config.get("app", "modbus", "enabled", default=True)
         self._host: str = config.get("app", "modbus", "host", default="localhost")
         self._port: int = config.get("app", "modbus", "port", default=502)
         self._alarm_coil: int = config.get("app", "modbus", "alarm_coil_address", default=0)
         self._client: Optional[object] = None
         self._lock = threading.Lock()
+        self._disabled_logged = False
 
     def connect(self) -> bool:
+        if not self._enabled:
+            if not self._disabled_logged:
+                logger.info("Modbus disabled by config (app.modbus.enabled=false)")
+                self._disabled_logged = True
+            return False
         if not MODBUS_AVAILABLE:
             return False
         try:
@@ -41,10 +48,10 @@ class ModbusAlarmWriter:
             if result:
                 logger.info("Modbus connected to %s:%d", self._host, self._port)
             else:
-                logger.warning("Modbus connection failed: %s:%d", self._host, self._port)
+                logger.warning("Modbus connection failed: %s:%d (PLC may not be running)", self._host, self._port)
             return result
         except Exception as exc:
-            logger.error("Modbus connect error: %s", exc)
+            logger.warning("Modbus connect error: %s (PLC may not be running)", exc)
             return False
 
     def disconnect(self) -> None:
@@ -53,12 +60,20 @@ class ModbusAlarmWriter:
 
     def write_alarm(self, active: bool) -> bool:
         """Alarm coil'ini yazar. active=True → defect var."""
-        if not MODBUS_AVAILABLE or self._client is None:
+        if not self._enabled:
+            return False
+        if not MODBUS_AVAILABLE:
             return False
         with self._lock:
             try:
-                self._client.write_coil(self._alarm_coil, active)
-                return True
+                if self._client is None or not self._client.connected:
+                    self.connect()
+                if self._client and self._client.connected:
+                    self._client.write_coil(self._alarm_coil, active)
+                    return True
+                else:
+                    return False
             except Exception as exc:
-                logger.warning("Modbus write_coil failed: %s", exc)
+                logger.warning("Modbus write_coil failed: %s (PLC may not be running)", exc)
+                self._client = None
                 return False

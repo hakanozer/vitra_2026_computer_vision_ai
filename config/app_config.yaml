@@ -12,7 +12,7 @@ camera:
 pipeline:
   default_camera_id: "camera-0"
   target_fps: 15.0                   # Inference FPS hedefi
-  capture_save_every_n_seconds: 15000.0 # Kaç saniyede bir frame dataset adayına eklenir
+  capture_save_every_n_seconds: 1500000.0 # Kaç saniyede bir frame dataset adayına eklenir
 
 mqtt:
   host: "${MQTT_HOST:-mosquitto}"
@@ -20,7 +20,8 @@ mqtt:
   base_topic: "vitra/ai"
 
 modbus:
-  host: "${MODBUS_HOST:-mock-plc}"
+  enabled: false
+  host: "${MODBUS_HOST:-localhost}"
   port: 502
   alarm_coil_address: 0
 

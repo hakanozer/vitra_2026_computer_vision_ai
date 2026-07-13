@@ -105,8 +105,7 @@ class OnnxInference:
 
         # 3. Postprocess
         detections, has_low_conf = self._postprocess(raw_output[0], orig_w, orig_h)
-
-
+        
         result = InferenceResult(
             detections=detections,
             inference_time_ms=inference_ms,
@@ -206,8 +205,8 @@ class OnnxInference:
                 if scores_raw.size == 0:
                     logger.warning("No class scores in ONNX output with shape: %s", predictions.shape)
                     return [], False
-                if np.min(scores_raw) < 0.0 or np.max(scores_raw) > 1.0:
-                    scores_raw = _sigmoid(scores_raw)
+                # YOLOv8 ONNX her zaman ham logit döner — sigmoid her zaman uygulanmalı
+                scores_raw = _sigmoid(scores_raw)
                 class_ids = np.argmax(scores_raw, axis=1)
                 confidences = scores_raw[np.arange(len(scores_raw)), class_ids]
 
@@ -216,10 +215,9 @@ class OnnxInference:
             boxes_raw = pred[:, :4]
             obj = pred[:, 4:5]
             cls_scores = pred[:, 5:5 + num_classes]
-            if np.min(obj) < 0.0 or np.max(obj) > 1.0:
-                obj = _sigmoid(obj)
-            if np.min(cls_scores) < 0.0 or np.max(cls_scores) > 1.0:
-                cls_scores = _sigmoid(cls_scores)
+            # Ham logit — her zaman sigmoid uygula
+            obj = _sigmoid(obj)
+            cls_scores = _sigmoid(cls_scores)
             fused_scores = obj * cls_scores
             class_ids = np.argmax(fused_scores, axis=1)
             confidences = fused_scores[np.arange(len(fused_scores)), class_ids]
@@ -231,8 +229,8 @@ class OnnxInference:
             if scores_raw.size == 0:
                 logger.warning("No class scores in ONNX output with shape: %s", predictions.shape)
                 return [], False
-            if np.min(scores_raw) < 0.0 or np.max(scores_raw) > 1.0:
-                scores_raw = _sigmoid(scores_raw)
+            # YOLOv8 ONNX her zaman ham logit döner — sigmoid her zaman uygulanmalı
+            scores_raw = _sigmoid(scores_raw)
             class_ids = np.argmax(scores_raw, axis=1)
             confidences = scores_raw[np.arange(len(scores_raw)), class_ids]
 
@@ -319,5 +317,9 @@ class OnnxInference:
                     bbox_xywh=[bx, by, bw, bh],
                 )
             )
+            
+
+        mask = confidences >= self._candidate_threshold
+
         logger.debug("Postprocess final detections: %d", len(detections))
         return detections, has_low_conf_candidate

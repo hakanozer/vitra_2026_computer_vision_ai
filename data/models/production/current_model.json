@@ -1,0 +1,13 @@
+{
+  "version": "v20260713_004",
+  "model_path": "data/models/registry/v20260713_004/model.onnx",
+  "promoted_at": 1783962888.33969,
+  "promoted_at_iso": "2026-07-13T20:14:48",
+  "metrics": {
+    "mAP50": 0.870625,
+    "mAP50_95": 0.373125,
+    "precision": 0.0037500421934840334,
+    "recall": 1.0
+  },
+  "dataset_version": "latest"
+}
