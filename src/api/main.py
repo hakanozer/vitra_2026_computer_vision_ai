@@ -95,7 +95,7 @@ def ensure_inference_model_loaded(force_reload: bool = False) -> bool:
 def _run_inference_loop() -> None:
     global _inference_running
     camera_id: str = config.get("app", "pipeline", "default_camera_id", default="camera-0")
-    capture_interval: float = config.get("app", "pipeline", "capture_save_every_n_seconds", default=5.0)
+    capture_interval: float = config.get("app", "pipeline", "capture_save_every_n_seconds", default=15000.0)
     last_capture = 0.0
 
     while _inference_running:
@@ -114,7 +114,6 @@ def _run_inference_loop() -> None:
         result = _inference_engine.predict(
             packet.frame, packet.frame_index, packet.camera_id
         )
-        print(f"Inference result: {result}")
         _result_processor.process(result, packet.frame)
 
         # Periyodik dataset aday kaydı

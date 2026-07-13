@@ -20,7 +20,6 @@ _stats: dict = {
 def record_detection(camera_id: str, detections: list, inference_ms: float) -> None:
     """Inference sonuçlarını dashboard için kaydeder."""
     _stats["total_frames_processed"] += 1
-    print(f"Recording detection for camera_id={camera_id}, detections={detections}, inference_ms={inference_ms}")
     if detections:
         _stats["total_defects_detected"] += len(detections)
         _recent_detections.append({
