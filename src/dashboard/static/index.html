@@ -14,6 +14,7 @@
       --color-ok: #10b981;
       --color-nok: #ef4444;
       --color-accent: #3b82f6;
+      --color-accent-strong: #2563eb;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: var(--bg-dark); color: var(--text-main); line-height: 1.5; }
@@ -23,6 +24,8 @@
     .badge-green { background: rgba(16, 185, 129, 0.2); color: var(--color-ok); border: 1px solid var(--color-ok); }
     .badge-red { background: rgba(239, 68, 68, 0.2); color: var(--color-nok); border: 1px solid var(--color-nok); }
     .badge-gray { background: rgba(148, 163, 184, 0.2); color: var(--text-muted); border: 1px solid var(--border-color); }
+    .header-link { margin-left: auto; display: inline-flex; align-items: center; justify-content: center; padding: 10px 14px; border-radius: 12px; background: linear-gradient(135deg, var(--color-accent), var(--color-accent-strong)); color: #fff; text-decoration: none; font-size: 0.85rem; font-weight: 700; letter-spacing: 0.02em; border: 1px solid rgba(59, 130, 246, 0.35); }
+    .header-link:hover { filter: brightness(1.08); }
     
     .container { display: flex; flex-direction: column; gap: 24px; padding: 24px; max-width: 1600px; margin: 0 auto; }
     
@@ -75,7 +78,8 @@
   <header>
     <h1>🏭 Vitra Endüstriyel Kalite Analiz Sistemi</h1>
     <span id="model-badge" class="badge badge-gray">Model: Yükleniyor…</span>
-    <span id="uptime-badge" class="badge badge-gray" style="margin-left:auto">Uptime: —</span>
+    <a class="header-link" href="/dashboard/capture.html">Manuel Görüntü Toplama</a>
+    <span id="uptime-badge" class="badge badge-gray">Uptime: —</span>
   </header>
 
   <div class="container">
