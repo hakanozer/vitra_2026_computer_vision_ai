@@ -1,0 +1,14 @@
+{
+  "version": "v20260714_001",
+  "registered_at": 1784035466.6641889,
+  "registered_at_iso": "2026-07-14T16:24:26",
+  "dataset_version": "latest",
+  "metrics": {
+    "mAP50": 0.9116666666666666,
+    "mAP50_95": 0.6341395727847068,
+    "precision": 1.0,
+    "recall": 0.19019238104377084
+  },
+  "pt_source": "data/training_runs/train_latest_20260714_162216/weights/best.pt",
+  "onnx_source": "data/training_runs/train_latest_20260714_162216/weights/best.onnx"
+}

@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vitra Endüstriyel AI — Manuel Görüntü Toplama</title>
+  <style>
+    :root {
+      --bg-dark: #0f172a;
+      --bg-panel: #1e293b;
+      --bg-soft: #162033;
+      --border-color: #334155;
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --color-ok: #10b981;
+      --color-nok: #ef4444;
+      --color-accent: #3b82f6;
+      --color-accent-strong: #2563eb;
+      --shadow: 0 18px 48px rgba(2, 6, 23, 0.28);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(59, 130, 246, 0.12), transparent 30%),
+        radial-gradient(circle at top right, rgba(16, 185, 129, 0.08), transparent 24%),
+        var(--bg-dark);
+      color: var(--text-main);
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+    header {
+      background: rgba(30, 41, 59, 0.92);
+      backdrop-filter: blur(10px);
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 1px solid var(--border-color);
+      position: sticky;
+      top: 0;
+      z-index: 5;
+    }
+    header h1 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .header-link {
+      margin-left: auto;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 14px;
+      border-radius: 12px;
+      background: rgba(148, 163, 184, 0.14);
+      color: var(--text-main);
+      text-decoration: none;
+      border: 1px solid var(--border-color);
+      font-size: 0.85rem;
+      font-weight: 700;
+    }
+    .page {
+      max-width: 1600px;
+      margin: 0 auto;
+      padding: 24px;
+      display: grid;
+      gap: 24px;
+    }
+    .hero {
+      display: grid;
+      gap: 24px;
+      grid-template-columns: minmax(0, 1.4fr) minmax(320px, 0.8fr);
+      align-items: start;
+    }
+    .panel {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-color);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .panel-inner {
+      padding: 18px;
+    }
+    .panel-title {
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      margin-bottom: 14px;
+    }
+    .video-shell {
+      aspect-ratio: 16 / 9;
+      width: 100%;
+      background: #000;
+      border-radius: 14px;
+      border: 1px solid var(--border-color);
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .video-shell img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+    .controls {
+      display: grid;
+      gap: 16px;
+    }
+    .controls-card {
+      padding: 20px;
+      background: linear-gradient(180deg, rgba(59, 130, 246, 0.08), rgba(15, 23, 42, 0));
+    }
+    .intro {
+      color: var(--text-muted);
+      font-size: 0.92rem;
+      margin-bottom: 18px;
+    }
+    .field {
+      display: grid;
+      gap: 8px;
+    }
+    .field label {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+    .field select,
+    .field input {
+      width: 100%;
+      border-radius: 12px;
+      border: 1px solid var(--border-color);
+      background: var(--bg-soft);
+      color: var(--text-main);
+      padding: 12px 14px;
+      font-size: 0.95rem;
+      outline: none;
+    }
+    .field input:focus,
+    .field select:focus {
+      border-color: var(--color-accent);
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.18);
+    }
+    .actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 6px;
+    }
+    .btn {
+      border: 0;
+      border-radius: 12px;
+      padding: 12px 16px;
+      font-weight: 700;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: transform 0.18s ease, filter 0.18s ease;
+    }
+    .btn:hover { transform: translateY(-1px); }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--color-accent), var(--color-accent-strong));
+      color: #fff;
+      min-width: 150px;
+    }
+    .btn-secondary {
+      background: rgba(148, 163, 184, 0.14);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+    }
+    .status-box {
+      border: 1px solid var(--border-color);
+      background: rgba(15, 23, 42, 0.5);
+      border-radius: 14px;
+      padding: 14px;
+      display: grid;
+      gap: 8px;
+    }
+    .status-main {
+      font-size: 1rem;
+      font-weight: 700;
+    }
+    .status-sub {
+      color: var(--text-muted);
+      font-size: 0.88rem;
+    }
+    .status-main.running { color: var(--color-ok); }
+    .status-main.stopped { color: var(--text-main); }
+    .status-main.error { color: var(--color-nok); }
+    .gallery {
+      display: grid;
+      gap: 24px;
+      grid-template-columns: minmax(280px, 0.85fr) minmax(0, 1.15fr);
+    }
+    .list-card,
+    .preview-card {
+      padding: 20px;
+    }
+    .list-meta {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      margin-bottom: 14px;
+    }
+    .capture-list {
+      display: grid;
+      gap: 10px;
+      max-height: 560px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+    .capture-item {
+      width: 100%;
+      text-align: left;
+      border: 1px solid var(--border-color);
+      background: rgba(15, 23, 42, 0.6);
+      color: var(--text-main);
+      border-radius: 14px;
+      padding: 14px;
+      cursor: pointer;
+      transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+    }
+    .capture-item:hover {
+      border-color: var(--color-accent);
+      background: rgba(30, 41, 59, 0.94);
+      transform: translateY(-1px);
+    }
+    .capture-item.active {
+      border-color: var(--color-accent);
+      background: rgba(59, 130, 246, 0.12);
+    }
+    .capture-item strong {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 0.95rem;
+    }
+    .capture-item span {
+      display: block;
+      color: var(--text-muted);
+      font-size: 0.8rem;
+    }
+    .capture-actions {
+      margin-top: 10px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .mini-btn {
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 6px 10px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      cursor: pointer;
+      color: var(--text-main);
+      background: rgba(15, 23, 42, 0.9);
+    }
+    .mini-btn:hover {
+      filter: brightness(1.1);
+    }
+    .mini-btn.delete {
+      color: #fecaca;
+      border-color: rgba(239, 68, 68, 0.5);
+      background: rgba(127, 29, 29, 0.35);
+    }
+    .mini-btn.annotate {
+      color: #bfdbfe;
+      border-color: rgba(59, 130, 246, 0.5);
+      background: rgba(30, 64, 175, 0.35);
+    }
+    .preview-shell {
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      border-radius: 16px;
+      overflow: hidden;
+      background: #020617;
+      border: 1px solid var(--border-color);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .preview-shell img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: none;
+    }
+    .preview-placeholder {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      text-align: center;
+      padding: 24px;
+    }
+    .preview-info {
+      margin-top: 16px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px;
+    }
+    .info-tile {
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      background: rgba(15, 23, 42, 0.55);
+      padding: 12px;
+    }
+    .info-tile .label {
+      color: var(--text-muted);
+      font-size: 0.76rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 6px;
+    }
+    .info-tile .value {
+      font-weight: 700;
+      font-size: 0.95rem;
+      word-break: break-word;
+    }
+    @media (max-width: 1120px) {
+      .hero,
+      .gallery {
+        grid-template-columns: 1fr;
+      }
+    }
+    @media (max-width: 720px) {
+      .page { padding: 16px; }
+      header { padding: 14px 16px; flex-wrap: wrap; }
+      .actions { flex-direction: column; }
+      .btn { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>📸 Manuel Görüntü Toplama</h1>
+    <a class="header-link" href="/dashboard/">Dashboard'a Dön</a>
+  </header>
+
+  <main class="page">
+    <section class="hero">
+      <div class="panel">
+        <div class="panel-inner">
+          <div class="panel-title">Canlı Kamera</div>
+          <div class="video-shell">
+            <img id="live-stream" src="" alt="Canlı kamera akışı" onerror="this.removeAttribute('src')">
+          </div>
+        </div>
+      </div>
+
+      <div class="panel controls-card">
+        <div class="panel-inner" style="padding:0;">
+          <div class="panel-title">Yakalama Kontrolü</div>
+          <p class="intro">Kamera seçin, saniye aralığını belirleyin ve otomatik yakalamayı başlatın. Yakalanan görseller aşağıdaki listede birikir.</p>
+
+          <div class="controls">
+            <div class="field">
+              <label for="camera-select">Kamera</label>
+              <select id="camera-select">
+                <option value="">Kameralar yükleniyor…</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label for="interval-input">Yakalama Aralığı (saniye)</label>
+              <input id="interval-input" type="number" min="1" step="1" value="5">
+            </div>
+
+            <div class="actions">
+              <button id="start-btn" class="btn btn-primary" type="button">Yakalamayı Başlat</button>
+              <button id="stop-btn" class="btn btn-secondary" type="button">Durdur</button>
+            </div>
+
+            <div class="status-box">
+              <div id="capture-status" class="status-main stopped">Beklemede</div>
+              <div id="capture-status-sub" class="status-sub">Kamera seçip otomatik yakalamayı başlatın.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="gallery">
+      <div class="panel list-card">
+        <div class="panel-title">Yakalanan Görüntü Listesi</div>
+        <div id="list-meta" class="list-meta">Henüz liste yüklenmedi.</div>
+        <div id="capture-list" class="capture-list"></div>
+      </div>
+
+      <div class="panel preview-card">
+        <div class="panel-title">Seçili Görüntü Önizleme</div>
+        <div class="preview-shell">
+          <img id="preview-image" alt="Seçili yakalama görüntüsü">
+          <div id="preview-placeholder" class="preview-placeholder">Listeden bir görüntü seçtiğinizde burada gösterilir.</div>
+        </div>
+        <div class="preview-info">
+          <div class="info-tile">
+            <div class="label">Sample ID</div>
+            <div id="preview-id" class="value">—</div>
+          </div>
+          <div class="info-tile">
+            <div class="label">Kamera</div>
+            <div id="preview-camera" class="value">—</div>
+          </div>
+          <div class="info-tile">
+            <div class="label">Zaman</div>
+            <div id="preview-time" class="value">—</div>
+          </div>
+          <div class="info-tile">
+            <div class="label">Kaynak</div>
+            <div id="preview-source" class="value">—</div>
+          </div>
+          <div class="info-tile">
+            <div class="label">Blur</div>
+            <div id="preview-blur" class="value">—</div>
+          </div>
+          <div class="info-tile">
+            <div class="label">Parlaklık / Kontrast</div>
+            <div id="preview-quality" class="value">—</div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const API = '';
+    const cameraSelect = document.getElementById('camera-select');
+    const intervalInput = document.getElementById('interval-input');
+    const startBtn = document.getElementById('start-btn');
+    const stopBtn = document.getElementById('stop-btn');
+    const liveStream = document.getElementById('live-stream');
+    const captureStatus = document.getElementById('capture-status');
+    const captureStatusSub = document.getElementById('capture-status-sub');
+    const captureList = document.getElementById('capture-list');
+    const listMeta = document.getElementById('list-meta');
+    const previewImage = document.getElementById('preview-image');
+    const previewPlaceholder = document.getElementById('preview-placeholder');
+
+    let captureTimer = null;
+    let selectedItemId = null;
+    let currentCameraId = '';
+
+    function setStatus(text, subtext, kind = 'stopped') {
+      captureStatus.textContent = text;
+      captureStatus.className = `status-main ${kind}`;
+      captureStatusSub.textContent = subtext;
+    }
+
+    function formatTimestamp(ts) {
+      if (!ts) return '—';
+      return new Date(ts * 1000).toLocaleString('tr-TR');
+    }
+
+    async function fetchCameraList() {
+      const response = await fetch(`${API}/api/camera/list`, { headers: { accept: 'application/json' } });
+      if (!response.ok) throw new Error('Kamera listesi alınamadı');
+      return response.json();
+    }
+
+    async function fetchQueue() {
+      const response = await fetch(`${API}/api/labeling/queue?limit=50`, { headers: { accept: 'application/json' } });
+      if (!response.ok) throw new Error('Görüntü listesi alınamadı');
+      return response.json();
+    }
+
+    async function captureNow(cameraId) {
+      const response = await fetch(`${API}/api/camera/capture-now`, {
+        method: 'POST',
+        headers: {
+          accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          camera_id: cameraId,
+          source: 'manual_capture',
+          force_add: true,
+        }),
+      });
+      if (!response.ok) {
+        const message = await response.text();
+        throw new Error(message || 'Yakalama isteği başarısız');
+      }
+      return response.json();
+    }
+
+    async function deleteImage(imageId) {
+      const response = await fetch(`${API}/api/labeling/delete/${imageId}`, {
+        method: 'DELETE',
+        headers: { accept: 'application/json' },
+      });
+      if (!response.ok) {
+        const message = await response.text();
+        throw new Error(message || 'Silme başarısız');
+      }
+      return response.json();
+    }
+
+    async function startAnnotate(imageId) {
+      const response = await fetch(`${API}/api/labeling/annotate/${imageId}`, {
+        method: 'POST',
+        headers: { accept: 'application/json' },
+      });
+      if (!response.ok) {
+        const message = await response.text();
+        throw new Error(message || 'Etiketleme başlatılamadı');
+      }
+      return response.json();
+    }
+
+    function updateLiveStream(cameraId) {
+      currentCameraId = cameraId;
+      if (!cameraId) {
+        liveStream.removeAttribute('src');
+        return;
+      }
+      liveStream.src = `/api/camera/stream/${cameraId}`;
+    }
+
+    function renderPreview(item) {
+      document.getElementById('preview-id').textContent = item?.id || '—';
+      document.getElementById('preview-camera').textContent = item?.camera_id || '—';
+      document.getElementById('preview-time').textContent = formatTimestamp(item?.timestamp);
+      document.getElementById('preview-source').textContent = item?.source || '—';
+      document.getElementById('preview-blur').textContent = item?.quality?.blur_score != null ? item.quality.blur_score.toFixed(2) : '—';
+      document.getElementById('preview-quality').textContent = item?.quality ? `${(item.quality.brightness ?? 0).toFixed(1)} / ${(item.quality.contrast ?? 0).toFixed(1)}` : '—';
+
+      if (item?.id) {
+        previewImage.src = `/api/labeling/image/${item.id}`;
+        previewImage.style.display = 'block';
+        previewPlaceholder.style.display = 'none';
+      } else {
+        previewImage.removeAttribute('src');
+        previewImage.style.display = 'none';
+        previewPlaceholder.style.display = 'block';
+      }
+    }
+
+    function renderList(candidates) {
+      const filtered = currentCameraId
+        ? candidates.filter(item => item.camera_id === currentCameraId)
+        : candidates;
+
+      listMeta.textContent = `${filtered.length} görüntü listeleniyor${currentCameraId ? ` (${currentCameraId})` : ''}.`;
+
+      if (filtered.length === 0) {
+        captureList.innerHTML = '<div class="preview-placeholder" style="padding:20px 8px;">Henüz yakalanmış görüntü yok.</div>';
+        renderPreview(null);
+        return;
+      }
+
+      if (!filtered.some(item => item.id === selectedItemId)) {
+        selectedItemId = filtered[0].id;
+      }
+
+      captureList.innerHTML = filtered.map(item => {
+        const activeClass = item.id === selectedItemId ? 'active' : '';
+        const qualityText = item.quality?.is_acceptable ? 'Kalite uygun' : 'Kalite düşük';
+        return `
+          <button class="capture-item ${activeClass}" type="button" data-id="${item.id}">
+            <strong>${item.id}</strong>
+            <span>${formatTimestamp(item.timestamp)}</span>
+            <span>${item.camera_id} • ${qualityText}</span>
+            <div class="capture-actions">
+              <button class="mini-btn delete" type="button" data-action="delete" data-id="${item.id}">Sil</button>
+              <button class="mini-btn annotate" type="button" data-action="annotate" data-id="${item.id}">Etiketle</button>
+            </div>
+          </button>
+        `;
+      }).join('');
+
+      const selected = filtered.find(item => item.id === selectedItemId) || filtered[0];
+      renderPreview(selected);
+
+      captureList.querySelectorAll('.capture-item').forEach(button => {
+        button.addEventListener('click', () => {
+          selectedItemId = button.dataset.id;
+          renderList(candidates);
+        });
+      });
+
+      captureList.querySelectorAll('.mini-btn').forEach(button => {
+        button.addEventListener('click', async (event) => {
+          event.stopPropagation();
+          const action = button.dataset.action;
+          const id = button.dataset.id;
+          if (!id) return;
+
+          if (action === 'delete') {
+            if (!window.confirm(`Bu görüntü silinsin mi?\n${id}`)) {
+              return;
+            }
+            try {
+              await deleteImage(id);
+              if (selectedItemId === id) {
+                selectedItemId = null;
+              }
+              setStatus('Silindi', `${id} kuyruğundan silindi.`, 'stopped');
+              await refreshCandidates();
+            } catch (error) {
+              setStatus('Hata', `Silme başarısız: ${error.message}`, 'error');
+            }
+            return;
+          }
+
+          if (action === 'annotate') {
+            try {
+              await startAnnotate(id);
+              setStatus('Etiketleme Başlatıldı', `${id} için bbox_picker açıldı.`, 'running');
+            } catch (error) {
+              setStatus('Hata', `Etiketleme başlatılamadı: ${error.message}`, 'error');
+            }
+          }
+        });
+      });
+    }
+
+    async function refreshCandidates() {
+      try {
+        const data = await fetchQueue();
+        renderList(data.candidates || []);
+      } catch (error) {
+        listMeta.textContent = `Liste güncellenemedi: ${error.message}`;
+      }
+    }
+
+    async function loadCameras() {
+      const cameras = await fetchCameraList();
+      const entries = Object.entries(cameras);
+      if (entries.length === 0) {
+        cameraSelect.innerHTML = '<option value="">Kamera bulunamadı</option>';
+        updateLiveStream('');
+        return;
+      }
+
+      cameraSelect.innerHTML = entries.map(([cameraId, info]) => {
+        const status = info.camera_alive ? 'hazır' : 'pasif';
+        return `<option value="${cameraId}">${cameraId} (${status})</option>`;
+      }).join('');
+
+      if (!currentCameraId || !cameras[currentCameraId]) {
+        currentCameraId = entries[0][0];
+      }
+      cameraSelect.value = currentCameraId;
+      updateLiveStream(currentCameraId);
+    }
+
+    async function runCaptureOnce() {
+      if (!currentCameraId) return;
+      try {
+        const result = await captureNow(currentCameraId);
+        setStatus('Yakalama Aktif', `${result.camera_id} için son kayıt: ${result.sample_id}`, 'running');
+        await refreshCandidates();
+      } catch (error) {
+        setStatus('Hata', `Yakalama başarısız: ${error.message}`, 'error');
+      }
+    }
+
+    function stopCapture() {
+      if (captureTimer) {
+        window.clearInterval(captureTimer);
+        captureTimer = null;
+      }
+      setStatus('Beklemede', 'Otomatik yakalama durduruldu.', 'stopped');
+    }
+
+    async function startCapture() {
+      const seconds = Number(intervalInput.value);
+      if (!currentCameraId) {
+        setStatus('Hata', 'Önce bir kamera seçin.', 'error');
+        return;
+      }
+      if (!Number.isFinite(seconds) || seconds < 1) {
+        setStatus('Hata', 'Saniye aralığı 1 veya daha büyük olmalı.', 'error');
+        return;
+      }
+
+      stopCapture();
+      setStatus('Yakalama Aktif', `${currentCameraId} için her ${seconds} saniyede bir kayıt alınacak.`, 'running');
+      await runCaptureOnce();
+      captureTimer = window.setInterval(runCaptureOnce, seconds * 1000);
+    }
+
+    cameraSelect.addEventListener('change', async () => {
+      currentCameraId = cameraSelect.value;
+      updateLiveStream(currentCameraId);
+      selectedItemId = null;
+      await refreshCandidates();
+    });
+
+    startBtn.addEventListener('click', startCapture);
+    stopBtn.addEventListener('click', stopCapture);
+
+    async function init() {
+      try {
+        await loadCameras();
+        await refreshCandidates();
+      } catch (error) {
+        setStatus('Hata', error.message, 'error');
+      }
+    }
+
+    init();
+    window.addEventListener('beforeunload', stopCapture);
+  </script>
+</body>
+</html>

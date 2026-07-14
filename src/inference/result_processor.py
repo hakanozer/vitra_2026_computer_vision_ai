@@ -95,11 +95,13 @@ class ResultProcessor:
             x1, y1, x2, y2 = [int(v) for v in det.bbox_xyxy]
             color = colors.get(det.class_name, default_color)
             cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
-            label = f"{det.class_name} {det.confidence:.2f}"
+            label = f"Class: {det.class_name} | Confidence: {det.confidence:.2f}"
             (tw, th), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
-            cv2.rectangle(frame, (x1, y1 - th - 4), (x1 + tw, y1), color, -1)
+            y_label_top = max(0, y1 - th - 6)
+            y_label_bottom = max(0, y1)
+            cv2.rectangle(frame, (x1, y_label_top), (x1 + tw + 6, y_label_bottom), color, -1)
             cv2.putText(
-                frame, label, (x1, y1 - 2),
+                frame, label, (x1 + 3, max(12, y_label_bottom - 4)),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1
             )
         return frame

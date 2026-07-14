@@ -3,6 +3,7 @@ src/api/routers/labeling.py
 Operatör etiketleme arayüzü endpoint'leri.
 """
 from pathlib import Path
+import subprocess
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException
@@ -90,3 +91,29 @@ def reject_candidate(sample_id: str, req: RejectRequest):
     from src.dataset.labeling_queue import LabelingQueueManager
     LabelingQueueManager().reject_candidate(sample_id, req.reason)
     return {"status": "rejected", "sample_id": sample_id}
+
+@router.delete("/delete/{imageid}")
+def delete_image(imageid: str):
+    """Görüntüyü siler."""
+    from src.dataset.candidate_manager import CandidateManager
+    deleted = CandidateManager().delete_image(imageid)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Image not found")
+    return {"status": "deleted", "imageid": imageid}
+
+
+@router.post("/annotate/{imageid}")
+def open_bbox_picker(imageid: str):
+    """Seçili görüntü için bbox_picker aracını başlatır."""
+    try:
+        subprocess.Popen(
+            ["python", "scripts/bbox_picker.py", "--id", imageid],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"bbox_picker başlatılamadı: {exc}")
+
+    return {"status": "started", "imageid": imageid}
+    

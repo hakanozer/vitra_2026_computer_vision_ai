@@ -31,7 +31,7 @@ def main() -> None:
     parser.add_argument("--arch", default=None, help="yolov8n | yolov8s | yolov8m ...")
     parser.add_argument(
         "--device",
-        default="mps",
+        default="mps", # windows için cuda:0, mac için mps, cpu için cpu
         help="mps (Mac M4) | cpu | cuda:0 (Linux/NVIDIA)",
     )
     args = parser.parse_args()

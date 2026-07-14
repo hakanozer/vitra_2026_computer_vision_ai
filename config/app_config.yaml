@@ -12,6 +12,8 @@ camera:
 pipeline:
   default_camera_id: "camera-0"
   target_fps: 15.0                   # Inference FPS hedefi
+  auto_capture_to_queue_enabled: false   # true olursa dashboard açıkken periyodik otomatik kayıt yapılır
+  low_confidence_feedback_enabled: false # true olursa düşük confidence frame'leri otomatik queue'ya yazılır
   capture_save_every_n_seconds: 1500000.0 # Kaç saniyede bir frame dataset adayına eklenir
 
 mqtt:
@@ -36,3 +38,6 @@ api:
   host: "0.0.0.0"
   port: 8000
   workers: 1
+
+cameraIps:
+  camera-0: "rtsp://admin:Vitra2026@192.168.1.100:554/stream"

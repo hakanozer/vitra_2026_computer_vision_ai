@@ -58,6 +58,8 @@ def _alarm_callback(result) -> None:
 
 def _feedback_callback(frame: np.ndarray, camera_id: str) -> None:
     """Düşük confidence frame'lerini labeling queue'ya geri besler."""
+    if not config.get("app", "pipeline", "low_confidence_feedback_enabled", default=False):
+        return
     candidate_manager.process_frame(
         frame, camera_id, source="low_confidence_feedback", force_add=True
     )
@@ -96,8 +98,11 @@ def ensure_inference_model_loaded(force_reload: bool = False) -> bool:
 def _run_inference_loop() -> None:
     global _inference_running
     camera_id: str = config.get("app", "pipeline", "default_camera_id", default="camera-0")
+    auto_capture_enabled: bool = config.get(
+        "app", "pipeline", "auto_capture_to_queue_enabled", default=False
+    )
     capture_interval: float = config.get("app", "pipeline", "capture_save_every_n_seconds", default=1500000.0)
-    last_capture = 0.0
+    last_capture = time.time()
 
     while _inference_running:
         if not model_loader.is_loaded:
@@ -119,10 +124,11 @@ def _run_inference_loop() -> None:
         stream_manager.set_latest_annotated_frame(packet.camera_id, annotated)
 
         # Periyodik dataset aday kaydı
-        now = time.time()
-        if now - last_capture >= capture_interval:
-            candidate_manager.process_frame(packet.frame, camera_id)
-            last_capture = now
+        if auto_capture_enabled:
+            now = time.time()
+            if now - last_capture >= capture_interval:
+                candidate_manager.process_frame(packet.frame, camera_id)
+                last_capture = now
 
 
 # ------------------------------------------------------------------ #

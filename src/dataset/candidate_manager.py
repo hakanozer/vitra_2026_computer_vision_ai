@@ -113,3 +113,28 @@ class CandidateManager:
             report.blur_score,
         )
         return sample_id
+
+    # imageid ile imagei file olarak silen fonksiyon
+    def delete_image(self, imageid: str) -> bool:
+        deleted_any = False
+
+        # labeling_queue düz dizindir
+        queue_targets = [
+            LABELING_QUEUE_DIR / f"{imageid}.png",
+            LABELING_QUEUE_DIR / f"{imageid}.json",
+            LABELING_QUEUE_DIR / f"{imageid}_labels.json",
+        ]
+        for target in queue_targets:
+            if target.exists():
+                target.unlink()
+                deleted_any = True
+
+        # raw_captures altında tarih klasörleri olduğu için recursive aranır
+        for target in RAW_CAPTURES_DIR.rglob(f"{imageid}.png"):
+            target.unlink()
+            deleted_any = True
+        for target in RAW_CAPTURES_DIR.rglob(f"{imageid}.json"):
+            target.unlink()
+            deleted_any = True
+
+        return deleted_any
