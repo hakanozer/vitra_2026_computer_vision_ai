@@ -1,13 +1,13 @@
 {
-  "version": "v20260714_001",
-  "model_path": "data/models/registry/v20260714_001/model.onnx",
-  "promoted_at": 1784035466.6658418,
-  "promoted_at_iso": "2026-07-14T16:24:26",
+  "version": "v20260715_001",
+  "model_path": "data/models/registry/v20260715_001/model.onnx",
+  "promoted_at": 1784124758.301313,
+  "promoted_at_iso": "2026-07-15T17:12:38",
   "metrics": {
-    "mAP50": 0.9116666666666666,
-    "mAP50_95": 0.6341395727847068,
-    "precision": 1.0,
-    "recall": 0.19019238104377084
+    "mAP50": 0.995,
+    "mAP50_95": 0.597,
+    "precision": 0.00980392156862745,
+    "recall": 1.0
   },
   "dataset_version": "latest"
 }

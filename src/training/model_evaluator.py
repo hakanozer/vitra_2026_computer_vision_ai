@@ -8,6 +8,8 @@ import time
 from pathlib import Path
 from typing import Optional
 
+import yaml
+
 from src.utils.config_loader import config
 from src.utils.logger import get_logger
 
@@ -35,8 +37,19 @@ def _evaluate_onnx(onnx_path: Path, dataset_version: str) -> dict:
     except ImportError as e:
         raise RuntimeError(f"Değerlendirme için gerekli paket eksik: {e}")
 
-    val_images_dir = DATASET_DIR / dataset_version / "images" / "val"
-    val_labels_dir = DATASET_DIR / dataset_version / "labels" / "val"
+    dataset_root = DATASET_DIR / dataset_version
+    yaml_path = dataset_root / "data.yaml"
+    if not yaml_path.exists():
+        logger.warning("Dataset YAML not found: %s", yaml_path)
+        return {"mAP50": 0.0, "precision": 0.0, "recall": 0.0, "evaluated_images": 0}
+
+    with open(yaml_path, "r", encoding="utf-8") as f:
+        ds_cfg = yaml.safe_load(f) or {}
+
+    val_rel = ds_cfg.get("val", "valid/images")
+    val_images_dir = dataset_root / val_rel
+    split_name = Path(val_rel).parts[0] if Path(val_rel).parts else "valid"
+    val_labels_dir = dataset_root / split_name / "labels"
 
     if not val_images_dir.exists():
         logger.warning("Validation images dir not found: %s", val_images_dir)

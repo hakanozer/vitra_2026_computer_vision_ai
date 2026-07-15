@@ -151,16 +151,38 @@ class LabelingQueueManager:
             return False
         img_h, img_w = img.shape[:2]
 
-        yolo_lines = []
+        # Duplicate/conflict kutulari azaltmak icin bbox bazli class oylamasi uygula.
+        bbox_to_class_counts: dict[tuple[float, float, float, float], dict[int, int]] = {}
+        bbox_order: list[tuple[float, float, float, float]] = []
+
         for ann in label_data.get("annotations", []):
-            cls_id = ann["class_id"]
+            cls_id = int(ann["class_id"])
             x, y, w, h = ann["bbox_xywh"]
+            if w <= 0 or h <= 0:
+                continue
+
             # YOLO format: class_id cx cy w h (normalized 0-1)
             cx_n = (x + w / 2) / img_w
             cy_n = (y + h / 2) / img_h
             w_n = w / img_w
             h_n = h / img_h
-            yolo_lines.append(f"{cls_id} {cx_n:.6f} {cy_n:.6f} {w_n:.6f} {h_n:.6f}")
+
+            # 6 ondalikta normalize ederek ayni bbox kayitlarini grupla.
+            bbox_key = (round(cx_n, 6), round(cy_n, 6), round(w_n, 6), round(h_n, 6))
+            if bbox_key not in bbox_to_class_counts:
+                bbox_to_class_counts[bbox_key] = {}
+                bbox_order.append(bbox_key)
+            bbox_to_class_counts[bbox_key][cls_id] = bbox_to_class_counts[bbox_key].get(cls_id, 0) + 1
+
+        yolo_lines = []
+        for bbox_key in bbox_order:
+            class_counts = bbox_to_class_counts[bbox_key]
+            chosen_class = min(
+                class_counts.keys(),
+                key=lambda cid: (-class_counts[cid], cid),
+            )
+            cx_n, cy_n, w_n, h_n = bbox_key
+            yolo_lines.append(f"{chosen_class} {cx_n:.6f} {cy_n:.6f} {w_n:.6f} {h_n:.6f}")
 
         txt_path = labels_dir / f"{sample_id}.txt"
         with open(txt_path, "w", encoding="utf-8") as f:
@@ -176,10 +198,11 @@ class LabelingQueueManager:
             json.dump(meta, f, indent=2, ensure_ascii=False)
 
         logger.info(
-            "Candidate approved: id=%s → dataset/%s (annotations=%d)",
+            "Candidate approved: id=%s → dataset/%s (raw_annotations=%d sanitized_boxes=%d)",
             sample_id,
             dataset_version,
             len(label_data.get("annotations", [])),
+            len(yolo_lines),
         )
         return True
 

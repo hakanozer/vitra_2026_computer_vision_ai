@@ -12,6 +12,18 @@ patience: 20                   # Early stopping: N epoch iyileşme olmadığınd
 
 # Eğitim çıktıları
 runs_dir: "data/training_runs"
+results_dir: "results"
+
+# Dataset split pipeline (tekrarlanabilir)
+dataset_split:
+  train_ratio: 0.70
+  val_ratio: 0.10
+  test_ratio: 0.20
+  seed: 42
+  clear_output_dirs: true
+  sanitize_labels: true
+  min_valid_samples: 1
+  min_test_samples: 2
 
 # Sınıf isimleri (data.yaml ile senkronize tutulmalı)
 class_names:
@@ -23,6 +35,15 @@ class_names:
 # Promote kararı için mAP50 iyileşme eşiği
 # Yeni model bu kadar daha iyi olmazsa production'a geçmez
 promotion_map50_threshold: 0.01
+
+# Test metrikleri production gate
+promotion_gate:
+  enabled: true
+  min_test_map50_95: 0.05
+  min_test_f1: 0.05
+  min_test_precision: 0.01
+  min_test_images: 5
+  insufficient_test_policy: "use_val"  # use_val | block | skip
 
 # Cihaz notu:
 # device: "mps"   → Apple Silicon M4 (host ortamı)

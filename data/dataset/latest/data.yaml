@@ -1,7 +1,11 @@
-# Otomatik üretildi: 2026-07-14T16:22:16
+# Otomatik uretildi: 2026-07-15T17:31:44
 path: /Users/hakan/Documents/GitHub/vitra_2026_computer_vision_ai/data/dataset/latest
-train: images/train
-val: images/train
-
+train: train/images
+val: valid/images
+test: test/images
 nc: 4
-names: ['defect_scratch', 'defect_crack', 'defect_dent', 'ok']
+names:
+- defect_scratch
+- defect_crack
+- defect_dent
+- ok
