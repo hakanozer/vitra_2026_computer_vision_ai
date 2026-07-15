@@ -46,10 +46,21 @@
     .status-card .status-val { font-size: 2.5rem; font-weight: 800; letter-spacing: 0.05em; transition: all 0.3s ease; text-transform: uppercase; margin: 8px 0; }
     
     .video-card { padding: 16px; }
+    .control-card { gap: 16px; }
+    .control-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+    .control-field { display: flex; flex-direction: column; gap: 8px; }
+    .control-field label { font-size: 0.78rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .control-field select, .control-field input { background: #0b1220; color: var(--text-main); border: 1px solid var(--border-color); border-radius: 10px; padding: 10px 12px; font-size: 0.92rem; }
+    .control-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; }
+    .control-button { border: 0; border-radius: 10px; padding: 10px 14px; background: linear-gradient(135deg, var(--color-accent), var(--color-accent-strong)); color: #fff; font-weight: 700; cursor: pointer; }
+    .control-button.secondary { background: #1f2937; border: 1px solid var(--border-color); }
+    .control-help { min-height: 20px; color: var(--text-muted); font-size: 0.8rem; }
     .video-container { width: 100%; border-radius: 12px; overflow: hidden; background: #000; border: 1px solid var(--border-color); aspect-ratio: 16/9; display: flex; justify-content: center; align-items: center; position: relative; }
     .video-container img { width: 100%; height: 100%; object-fit: contain; }
     
     .section-title { font-size: 1.1rem; font-weight: 600; margin-bottom: 16px; color: var(--text-main); display: flex; align-items: center; gap: 8px; }
+    .table-controls { margin: -4px 0 14px 0; display: flex; justify-content: flex-end; }
+    .table-controls select { background: #0b1220; color: var(--text-main); border: 1px solid var(--border-color); border-radius: 10px; padding: 8px 10px; font-size: 0.85rem; }
     
     table { width: 100%; border-collapse: collapse; background: var(--bg-panel); border-radius: 12px; overflow: hidden; }
     th { background: #0b0f19; padding: 12px 16px; text-align: left; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); border-bottom: 1px solid var(--border-color); }
@@ -85,6 +96,34 @@
   <div class="container">
     <!-- Sol Sütun: Canlı Video ve Anlık Parça Durumu -->
     <div class="left-col">
+      <div class="card control-card">
+        <h2>Kamera ve Model Atama</h2>
+        <div class="control-grid">
+          <div class="control-field">
+            <label for="camera-select">Aktif Kamera</label>
+            <select id="camera-select"></select>
+          </div>
+          <div class="control-field">
+            <label for="model-select">Bu Kameranin Modeli</label>
+            <select id="model-select"></select>
+          </div>
+          <div class="control-field">
+            <label for="usb-camera-select">Bulunan USB Kameralar</label>
+            <select id="usb-camera-select"></select>
+          </div>
+          <div class="control-field">
+            <label for="new-camera-id">Yeni Kamera ID</label>
+            <input id="new-camera-id" type="text" placeholder="or. camera-1">
+          </div>
+        </div>
+        <div class="control-actions">
+          <button id="apply-model-btn" class="control-button">Modeli Kameraya Ata</button>
+          <button id="add-camera-btn" class="control-button secondary">USB Kamerayi Ekle</button>
+          <button id="refresh-cameras-btn" class="control-button secondary">Listeyi Yenile</button>
+        </div>
+        <div id="control-feedback" class="control-help">Kayitli kamera ve model listesi yukleniyor...</div>
+      </div>
+
       <div class="card video-card">
         <h2>Canlı Analiz Kamerası</h2>
         <div class="video-container">
@@ -126,6 +165,12 @@
       
       <div class="card">
         <h3 class="section-title">⏱️ Son Analiz Dökümleri</h3>
+        <div class="table-controls">
+          <select id="analysis-filter">
+            <option value="all">Tüm analizler</option>
+            <option value="defect">Sadece defect tespitleri</option>
+          </select>
+        </div>
         <div style="overflow-x: auto;">
           <table>
             <thead>

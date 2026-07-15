@@ -28,10 +28,47 @@ def list_cameras():
     return stream_manager.get_queue_stats()
 
 
+@router.get("/discover")
+def discover_cameras(max_index: int = 6, include_registered: bool = False):
+    """Makinede erişilebilir USB/OpenCV kamera index'lerini tarar."""
+    import cv2
+    from src.api.main import stream_manager
+
+    discovered = []
+    registered_ids = set(stream_manager.list_camera_ids())
+    for index in range(max(0, max_index)):
+        cap = cv2.VideoCapture(index)
+        try:
+            if not cap.isOpened():
+                continue
+            camera_id = f"camera-{index}"
+            is_registered = camera_id in registered_ids
+            if is_registered and not include_registered:
+                continue
+            width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH) or 0)
+            height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT) or 0)
+            discovered.append(
+                {
+                    "source": index,
+                    "camera_id": camera_id,
+                    "label": f"USB Camera {index}",
+                    "width": width,
+                    "height": height,
+                    "registered": is_registered,
+                }
+            )
+        finally:
+            cap.release()
+
+    return {"cameras": discovered}
+
+
 @router.post("/add")
 def add_camera(req: AddCameraRequest):
     """Yeni bir kamera ekler."""
     from src.api.main import stream_manager
+    if req.camera_id in stream_manager.list_camera_ids():
+        return {"status": "exists", "camera_id": req.camera_id}
     stream_manager.add_camera(req.camera_id, req.source, req.queue_size)
     return {"status": "added", "camera_id": req.camera_id}
 

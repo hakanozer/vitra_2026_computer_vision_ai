@@ -21,6 +21,10 @@ class EvaluateRequest(BaseModel):
     new_version: str = "pending"
 
 
+class CameraModelBindingRequest(BaseModel):
+    model_version: str = "__production__"
+
+
 @router.get("/registry")
 def list_registry():
     """Registry'deki tüm model versiyonlarını listeler."""
@@ -85,3 +89,34 @@ def register_model(
         Path(pt_path), Path(onnx_path), metrics, dataset_version
     )
     return {"status": "registered", "version": version}
+
+
+@router.get("/camera-bindings")
+def list_camera_bindings():
+    """Kameralara atanmış model bağlarını döner."""
+    from src.api.main import list_camera_model_assignments, stream_manager
+
+    return {
+        "bindings": list_camera_model_assignments(),
+        "camera_ids": stream_manager.list_camera_ids(),
+        "production_binding": "__production__",
+    }
+
+
+@router.put("/camera-bindings/{camera_id}")
+def set_camera_binding(camera_id: str, req: CameraModelBindingRequest):
+    """Belirli bir kameraya registry modeli veya production modeli atar."""
+    from src.api.main import set_camera_model_binding, stream_manager
+
+    if camera_id not in stream_manager.list_camera_ids():
+        raise HTTPException(status_code=404, detail=f"Camera not registered: {camera_id}")
+
+    try:
+        assignment = set_camera_model_binding(camera_id, req.model_version)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    return {
+        "status": "updated",
+        "assignment": assignment,
+    }

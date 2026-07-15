@@ -49,15 +49,30 @@ class StreamManager:
         self._cameras[camera_id] = reader
         self._queues[camera_id] = FrameQueue(maxsize=queue_size)
         self._frame_counter[camera_id] = 0
+        if self._running:
+            reader.start()
+            t = threading.Thread(
+                target=self._producer_loop,
+                args=(camera_id,),
+                name=f"producer-{camera_id}",
+                daemon=True,
+            )
+            self._producer_threads[camera_id] = t
+            t.start()
         logger.info("Camera '%s' registered (source=%s)", camera_id, source)
 
     def remove_camera(self, camera_id: str) -> None:
         if camera_id not in self._cameras:
             return
         self._cameras[camera_id].stop()
+        producer_thread = self._producer_threads.pop(camera_id, None)
+        if producer_thread:
+            producer_thread.join(timeout=5)
         del self._cameras[camera_id]
         del self._queues[camera_id]
         del self._frame_counter[camera_id]
+        with self._annotated_lock:
+            self._latest_annotated_frames.pop(camera_id, None)
         logger.info("Camera '%s' removed.", camera_id)
 
     # ------------------------------------------------------------------ #
@@ -128,6 +143,9 @@ class StreamManager:
             }
             for cam_id, q in self._queues.items()
         }
+
+    def list_camera_ids(self) -> List[str]:
+        return sorted(self._cameras.keys())
 
     # ------------------------------------------------------------------ #
     # İç döngü
