@@ -7,6 +7,9 @@
 # NOT: torch ve ultralytics Apple Silicon MPS desteği için pip'ten kurulur.
 #       PyTorch arm64 wheel'leri PyPI'da mevcuttur (2.3+).
 
+# -- Windows GPU bir cihazda kurulması gerekenler ---
+# cuda==12.1 - windows için kurulum yapılacak. toolkit ve driverlar yüklenecek. torch==2.3.1+cu121
+
 # --- PyTorch (Apple Silicon MPS destekli) ---
 torch==2.3.1
 torchvision==0.18.1

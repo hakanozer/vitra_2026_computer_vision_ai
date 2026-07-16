@@ -148,6 +148,16 @@ def video_stream(camera_id: str, annotated: bool = False):
                 time.sleep(0.04)
                 continue
                 
+            """
+            frame = cv2.resize(
+                frame,
+                None,
+                fx=0.5,
+                fy=0.5,
+                interpolation=cv2.INTER_AREA
+            )    
+            """
+            frame = cv2.resize(frame, (640, 360), interpolation=cv2.INTER_AREA)
             ret, buffer = cv2.imencode('.jpg', frame)
             if not ret:
                 time.sleep(0.04)

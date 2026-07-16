@@ -10,6 +10,10 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
+import os
+import sys
+
+
 router = APIRouter()
 
 
@@ -106,11 +110,21 @@ def delete_image(imageid: str):
 def open_bbox_picker(imageid: str):
     """Seçili görüntü için bbox_picker aracını başlatır."""
     try:
+        project_root = Path(__file__).resolve().parents[3]
+        script_path = Path(__file__).resolve().parents[3] / "scripts" / "bbox_picker.py"
+        popen_kwargs = {
+            "stdout": subprocess.DEVNULL,
+            "stderr": subprocess.DEVNULL,
+            "cwd": str(project_root),
+        }
+        if os.name == "nt":
+            popen_kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+        else:
+            popen_kwargs["start_new_session"] = True
+
         subprocess.Popen(
-            ["python", "scripts/bbox_picker.py", "--id", imageid],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            start_new_session=True,
+            [sys.executable, str(script_path), "--id", imageid],
+            **popen_kwargs,
         )
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"bbox_picker başlatılamadı: {exc}")

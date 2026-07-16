@@ -514,3 +514,170 @@ Bu proje iki ana boru hattindan olusur:
 - Inference boru hatti: istemci istegi/goruntu -> preprocess -> model cikarimi -> postprocess -> API ve dashboard yaniti
 
 Diyagram sunumunda bu dosyayi referans alarak her kutuyu dogrudan kod seviyesine baglayabilirsiniz.
+
+## 11) Performans Iyilestirme Yol Haritasi (If/Then Kurallari)
+
+Bu bolum, metrik ciktisina gore hangi ayari hangi dosyada nasil degistireceginizi netlestirir.
+Amac: Hata ayiklamada deneme-yanilma yerine kural tabanli ilerlemek.
+
+### 11.1 Hizli Karar Kurallari (Metrik -> Aksiyon)
+
+1. Eger precision cok dusukse ve recall yuksekse:
+- Kosul:
+  - precision < 0.01
+  - recall >= 0.70
+- Anlam:
+  - Model cok fazla yanlis pozitif uretiyor.
+- Aksiyon:
+  - config/inference_config.yaml icinde confidence_threshold degerini artirin.
+  - Onerilen aralik: 0.45 - 0.60
+  - Baslangic onerisi: 0.503
+
+2. Eger precision makul ama recall dusukse:
+- Kosul:
+  - precision >= 0.40
+  - recall < 0.30
+- Anlam:
+  - Model tutucu davraniyor, nesneleri kaciriyor.
+- Aksiyon:
+  - confidence_threshold degerini dusurun (ornek: 0.35 -> 0.25).
+  - iou_threshold degerini 0.45 -> 0.50 yaparak NMS'i yumusatin.
+
+3. Eger hem precision hem recall dusukse:
+- Kosul:
+  - precision < 0.10
+  - recall < 0.30
+- Anlam:
+  - Sadece threshold ayariyla duzelmeyecek kadar temel model/veri sorunu var.
+- Aksiyon:
+  - Once veri etiket kalite kontrolu yapin.
+  - src/training/dataset_splitter.py icindeki sanitize adimlarinin calistigini dogrulayin.
+  - Sonra yeniden egitim alin.
+
+4. Eger mAP50 yuksek ama mAP50_95 belirgin dusukse:
+- Kosul:
+  - mAP50 >= 0.90
+  - mAP50_95 <= 0.55
+- Anlam:
+  - Kutu konum hassasiyeti zayif.
+- Aksiyon:
+  - Daha iyi bbox kalitesi icin etiketleri gozden gecirin.
+  - Egitimde imgsz degerini arttirmayi deneyin (ornek: 640 -> 768).
+
+### 11.2 Senin Verdigin Metrik Profili Icin Net Karar
+
+Verilen profil:
+- mAP50: 0.2514
+- mAP50_95: 0.1020
+- precision: 0.0019
+- recall: 0.75
+
+Bu profil hangi sinifa girer:
+- precision cok dusuk + recall yuksek -> yanlis pozitif agirlikli profil.
+
+Uygulanacak net ayar:
+- config/inference_config.yaml
+  - confidence_threshold: 0.503
+
+Neden:
+- Uretim tarafinda dusuk guvenli, yanlis kutulari elemek icin karar esigini yukseltiyoruz.
+- Bu profil icin amac once false positive'i dusurmektir.
+
+### 11.3 Konfigurasyon Degisimi Icin Standart Soz Dizimi
+
+1. False positive agirlikli durumda:
+
+```yaml
+# config/inference_config.yaml
+confidence_threshold: 0.503
+iou_threshold: 0.45
+low_confidence_feedback_threshold: 0.2
+```
+
+2. Kacirma (false negative) agirlikli durumda:
+
+```yaml
+# config/inference_config.yaml
+confidence_threshold: 0.25
+iou_threshold: 0.50
+low_confidence_feedback_threshold: 0.2
+```
+
+### 11.4 .py Dosyalarinda Tavsiye Edilen Kod Iyilestirmeleri
+
+1. Durum: Coklu kamerada toplam gecikme artiyor (tablo gec geliyor, kutular gec ciziliyor).
+- Neden:
+  - src/api/main.py icindeki _run_inference_loop kameralari tek thread icinde sirali isliyor.
+- Yapilacak degisiklik:
+  - Kamera bazli inference worker thread kullanin.
+- Nerede:
+  - src/api/main.py, _run_inference_loop
+
+Ornek yaklasim:
+
+```python
+# her kamera icin ayri worker
+for camera_id in stream_manager.list_camera_ids():
+    threading.Thread(target=_run_single_camera_loop, args=(camera_id,), daemon=True).start()
+```
+
+2. Durum: Dashboard tablosunda analiz var ama kullanici sadece defect satirlari gormek istiyor.
+- Neden:
+  - Operasyonel izleme icin defect odakli gorunum gerekli olabilir.
+- Yapilacak degisiklik:
+  - frontend filtre modunu defect olarak secin.
+- Nerede:
+  - src/dashboard/static/app.js, analysisFilter
+
+3. Durum: Detections bazen tamamen kayboluyor.
+- Neden:
+  - confidence_threshold fazla yuksek kalabilir.
+- Yapilacak degisiklik:
+  - src/inference/onnx_inference.py icindeki _conf_threshold config degerini kontrollu dusurun.
+- Nerede:
+  - OnnxInference.__init__, OnnxInference._postprocess
+
+4. Durum: Ayni nesne icin birden fazla kutu kaliyor.
+- Neden:
+  - NMS bastirmasi zayif.
+- Yapilacak degisiklik:
+  - iou_threshold degerini dusurun (ornek: 0.45 -> 0.40).
+- Nerede:
+  - config/inference_config.yaml
+  - OnnxInference._postprocess (cv2.dnn.NMSBoxes)
+
+5. Durum: Egitim metrikleri dalgali, tiny dataset.
+- Neden:
+  - Veri sayisi az oldugu icin split ve metrik oynakligi yuksek.
+- Yapilacak degisiklik:
+  - dataset split minimumlarini zorlayin.
+- Nerede:
+  - config/training_config.yaml (min_valid_samples, min_test_samples)
+  - src/training/dataset_splitter.py (_split_counts)
+
+### 11.5 Uygulama Sirasi (Operasyon Playbook)
+
+1. Once model metrik profilini siniflandir:
+- precision/recall dengesine bak.
+
+2. Inference ayarini uygula:
+- confidence_threshold ve iou_threshold guncelle.
+
+3. Servisi yeniden baslat veya runtime config endpoint ile guncelle:
+- /api/inference/config
+
+4. Dashboard tablosundan 5-10 dakika izle:
+- Tum analizler modunda akisin surekliligini kontrol et.
+- Defect modunda yalniz hata satirlarini kontrol et.
+
+5. Hala dengesiz ise kod seviyesinde iyilestirmeye gec:
+- src/api/main.py thread mimarisi
+- src/inference/onnx_inference.py postprocess ayarlari
+- src/training/dataset_splitter.py veri kalite/split kurallari
+
+### 11.6 Kisa Kural Ozeti
+
+- Eger precision cok dusukse -> confidence_threshold artir.
+- Eger recall cok dusukse -> confidence_threshold azalt.
+- Eger kutu tekrar ediyorsa -> iou_threshold azalt.
+- Eger metrikler birlikte dusukse -> once veri/etiket kalitesini duzelt, sonra egitimi yenile.
