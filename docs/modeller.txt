@@ -1,0 +1,62 @@
+1. Eğitilecek Modeller
+YOLOv11 (Ultralytics) - En güncel YOLO ailesi.
+
+2. Anomali Tespit Modelleri - "Normal ürün nasıl görünür?"
+PatchCore
+
+En popüler model.
+
+Mantığı
+
+Normal ürünleri öğreniyor.
+
+Sonra
+
+çizik
+eksik vida
+çatlak
+boya hatası
+
+gibi daha önce görmediği kusurları yakalıyor.
+
+Avantaj
+
+Hiç arızalı veri gerektirmiyor.
+
+------
+
+PaDiM
+
+Intel tarafından geliştirildi.
+
+Çok kullanılıyor.
+
+Özellikle
+
+PCB
+
+Metal
+
+Cam
+
+Otomotiv
+
+parçalarında başarılı.
+
+------
+
+3. Foundation Vision Models - Bunlar geleceğin modelleri
+Grounding DINO - Prompt ile nesne buluyor.
+
+SAM2 (Segment Anything) *** - 
+Meta'nın modeli. - YOLO ile birlikte kullanılıyor.
+Örneğin
+Çizik kaç mm?
+Çatlak alanı kaç cm²?
+gibi ölçümler yapılabiliyor.
+
+------
+
+4. Endüstriyel Görüntü İşleme İçin Hazır Modeller
+MVTec AD - Bu bir model değil. En büyük anomaly datasetidir.
+
