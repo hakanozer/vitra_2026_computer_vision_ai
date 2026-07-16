@@ -1,0 +1,161 @@
+Github: https://github.com/hakanozer/vitra_2026_computer_vision_ai
+Doküman: https://jsonbulut.com/html/vitra_computer_vision_ai/
+
+Uygulama Çalıştırma: python -m uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --reload  
+
+SwaggerUI: http://localhost:8000/docs
+Dashboard: http://localhost:8000/dashboard/
+
+// Genel Kullanım
+Uygulamayı Çalıştır:
+python -m uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --reload
+
+
+Eğitim:
+1 - Resimleri Çek -> 
+curl -X 'POST' \
+  'http://localhost:8000/api/camera/capture-now' \
+  -H 'accept: application/json' \
+  -H 'Content-Type: application/json' \
+  -d '{
+  "camera_id": "camera-0",
+  "source": "manual_capture",
+  "force_add": true
+}'
+
+Response body
+Download
+{
+  "status": "captured",
+  "sample_id": "5fa80da4-9e29-4a93-a71a-440b10808773",
+  "camera_id": "camera-0",
+  "image_url": "/api/labeling/image/5fa80da4-9e29-4a93-a71a-440b10808773"
+}
+
+Resim idleri:
+5fa80da4-9e29-4a93-a71a-440b10808773 -0
+9b005703-ab74-433a-b896-ee589fe7f8ab -1 
+1243b7c1-5991-489f-8185-c68e9aa411a1 -2
+bd37a79d-9131-4056-9c43-0c0ebac2ed14 -3
+
+2- Resimlerin Onay / Red alanlarını belirle
+python scripts/bbox_picker.py --id bd37a79d-9131-4056-9c43-0c0ebac2ed14
+resimle üzerindeki çizimler ve sınıflar belirlendikten sonra kaydetmek için 's' tıkla
+
+
+3- Etiketleri Onayla ->
+curl -X 'POST' \
+  'http://localhost:8000/api/labeling/approve/5fa80da4-9e29-4a93-a71a-440b10808773' \
+  -H 'accept: application/json' \
+  -H 'Content-Type: application/json' \
+  -d '{
+  "dataset_version": "latest"
+}'
+
+4- Eğitimi Başlar -> python scripts/train.py --dataset latest --epochs 100 --device mps
+İşlem bittikten sonra aşağıdaki gibi bir çıktı alınacaktır.
+{
+  "best_pt": "data/training_runs/train_latest_20260713_183914/weights/best.pt",
+  "run_dir": "data/training_runs/train_latest_20260713_183914",
+  "metrics": {
+    "mAP50": 0.2514247311827957,
+    "mAP50_95": 0.10200843866814342,
+    "precision": 0.0019370031207906944,
+    "recall": 0.75
+  },
+  "dataset_version": "latest",
+  "run_name": "train_latest_20260713_183914",
+  "onnx_path": "data/training_runs/train_latest_20260713_183914/weights/best.onnx",
+  "model_version": "v20260713_001",
+  "promoted": true
+}
+
+Buradaki "model_version": "v20260713_001" bizim en son eğitimdeki modelimizdir.
+
+5- Belirtilen versiyonu production'a aktar ve çalıştırmaya hazır hale getirme.
+curl -X 'POST' \
+  'http://localhost:8000/api/model/promote' \
+  -H 'accept: application/json' \
+  -H 'Content-Type: application/json' \
+  -d '{
+  "version": "v20260713_001"
+}'
+
+Response body
+{
+  "status": "promoted",
+  "version": "v20260713_001"
+}
+
+6- Hot-swap: Production pointer'ı yeniden okuyarak modeli değiştirir. Servis yeniden başlatılmadan çalışır.
+curl -X 'POST' \
+  'http://localhost:8000/api/inference/reload-model' \
+  -H 'accept: application/json' \
+  -d ''
+
+Response body
+{
+  "status": "reloaded",
+  "model_metadata": {
+    "version": "v20260713_001",
+    "model_path": "data/models/registry/v20260713_001/model.onnx",
+    "promoted_at": 1783957911.441466,
+    "promoted_at_iso": "2026-07-13T18:51:51",
+    "metrics": {
+      "mAP50": 0.2514247311827957,
+      "mAP50_95": 0.10200843866814342,
+      "precision": 0.0019370031207906944,
+      "recall": 0.75
+    },
+    "dataset_version": "latest"
+  },
+  "timestamp": 1783958880.756567
+}
+
+
+7- Model Doğrulaması (Registry'deki tüm model versiyonlarını listeler.):
+curl -X 'GET' \
+  'http://localhost:8000/api/model/registry' \
+  -H 'accept: application/json'
+
+Response body
+Download
+{
+  "versions": [
+    {
+      "version": "v20260713_001",
+      "registered_at": 1783957190.061116,
+      "registered_at_iso": "2026-07-13T18:39:50",
+      "dataset_version": "latest",
+      "metrics": {
+        "mAP50": 0.2514247311827957,
+        "mAP50_95": 0.10200843866814342,
+        "precision": 0.0019370031207906944,
+        "recall": 0.75
+      },
+      "pt_source": "data/training_runs/train_latest_20260713_183914/weights/best.pt",
+      "onnx_source": "data/training_runs/train_latest_20260713_183914/weights/best.onnx"
+    }
+  ]
+}
+
+8- Mevcut production model bilgisini döner.
+curl -X 'GET' \
+  'http://localhost:8000/api/model/production' \
+  -H 'accept: application/json'
+
+
+Response body
+{
+  "version": "v20260713_001",
+  "model_path": "data/models/registry/v20260713_001/model.onnx",
+  "promoted_at": 1783957911.441466,
+  "promoted_at_iso": "2026-07-13T18:51:51",
+  "metrics": {
+    "mAP50": 0.2514247311827957,
+    "mAP50_95": 0.10200843866814342,
+    "precision": 0.0019370031207906944,
+    "recall": 0.75
+  },
+  "dataset_version": "latest"
+}
